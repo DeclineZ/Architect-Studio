@@ -13,7 +13,6 @@ const removeSelectedBtn = document.getElementById('remove-selected-btn');
 const availableModelsDiv = document.getElementById('available-models');
 const toggleUIButton = document.getElementById('toggle-ui-btn');
 const enterARPlaceholderBtn = document.getElementById('enter-ar-btn'); // Will be replaced by ARButton
-const scaleSlider = document.getElementById('scale-slider');
 
 // -----------------------------------------------------------------------------
 // Global State Variables
@@ -178,6 +177,15 @@ function updateModelSelectionUI() {
   });
 }
 
+function toggleUIVisibility() {
+  uiVisible = !uiVisible;
+  [availableModelsDiv, modelSelection].forEach(el => {
+    if (!el) return;
+    el.classList.toggle('hidden-ui', !uiVisible);
+  });
+  if (toggleUIButton) toggleUIButton.textContent = uiVisible ? 'Hide UI' : 'Show UI';
+}
+
 // -----------------------------------------------------------------------------
 // Selection Logic
 function onSelectOrSelectModel() {
@@ -223,14 +231,6 @@ function selectModel(object) {
       child.material.emissiveIntensity = 0.5;
     }
   });
-
-  // Enable and set scale slider value
-  if (scaleSlider) {
-    scaleSlider.disabled = false;
-    // Assume uniform scale on selected model
-    scaleSlider.value = selectedModel.scale.x.toFixed(2);
-  }
-
   updateModelSelectionUI();
 }
 
@@ -244,13 +244,6 @@ function deselectModel() {
   });
   selectedModel = null;
   originalMaterials.clear();
-
-  // Disable scale slider
-  if (scaleSlider) {
-    scaleSlider.disabled = true;
-    scaleSlider.value = '1';
-  }
-
   updateModelSelectionUI();
 }
 
