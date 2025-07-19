@@ -1,5 +1,3 @@
-// Updated app.js to import ES modules directly from CDN
-
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.module.js';
 import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/webxr/ARButton.js';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/loaders/GLTFLoader.js';
@@ -10,6 +8,7 @@ let camera, scene, renderer;
 let controller;
 let reticle;
 let model = null;
+const placedModels = [];
 
 init();
 
@@ -48,7 +47,18 @@ function init() {
 
   // Loading sample model
   const loader = new GLTFLoader();
-  loader.load('./models/RUMAH_3.glb', (gltf) => {
+  loader.load('models/sample-model.glb', (gltf) => {
+    // Center model geometry
+    gltf.scene.traverse((child) => {
+      if (child.isMesh) {
+        child.geometry.computeBoundingBox();
+        const bbox = child.geometry.boundingBox;
+        const center = new THREE.Vector3();
+        bbox.getCenter(center);
+        child.geometry.translate(-center.x, -center.y, -center.z);
+      }
+    });
+
     model = gltf.scene;
     model.scale.set(0.2, 0.2, 0.2);
     alert('Model loaded successfully');
@@ -105,9 +115,20 @@ function onSelect() {
     clone.position.setFromMatrixPosition(reticle.matrix);
     clone.quaternion.setFromRotationMatrix(reticle.matrix);
     scene.add(clone);
+    placedModels.push(clone);
     alert('Model placed!');
   } else {
     alert('Reticle not visible or model not loaded');
+  }
+}
+
+// Function to remove last placed model
+function removeLastModel() {
+  if (placedModels.length > 0) {
+    const lastModel = placedModels.pop();
+    scene.remove(lastModel);
+  } else {
+    alert('No models to remove');
   }
 }
 
@@ -116,3 +137,5 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+// You can call removeLastModel() from UI or console to remove last model.
