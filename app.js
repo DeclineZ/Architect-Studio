@@ -7,7 +7,6 @@ let container = document.getElementById('ar-container');
 let camera, scene, renderer;
 let controller;
 let reticle;
-let model = null;
 const placedModels = [];
 
 init();
@@ -45,26 +44,10 @@ function init() {
   reticle.visible = false;
   scene.add(reticle);
 
-  // Loading sample model
-  const loader = new GLTFLoader();
-  loader.load('./models/RUMAH_3.glb', (gltf) => {
-    // Center model geometry
-    gltf.scene.traverse((child) => {
-      if (child.isMesh) {
-        child.geometry.computeBoundingBox();
-        const bbox = child.geometry.boundingBox;
-        const center = new THREE.Vector3();
-        bbox.getCenter(center);
-        child.geometry.translate(-center.x, -center.y, -center.z);
-      }
-    });
-
-    model = gltf.scene;
-    model.scale.set(0.2, 0.2, 0.2);
-  }, undefined, (error) => {
-    console.error('Error loading model:', error);
-  });
-
+  // Create a simple cube as the test model instead
+  const cubeGeometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+  const cubeMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+  const testCube = new THREE.Mesh(cubeGeometry, cubeMaterial);
   // Hit test source for placing model
   let hitTestSource = null;
   let hitTestSourceRequested = false;
@@ -109,8 +92,8 @@ function init() {
 }
 
 function onSelect() {
-  if (reticle.visible && model) {
-    const clone = model.clone();
+  if (reticle.visible) {
+    const clone = testCube.clone();
     clone.position.setFromMatrixPosition(reticle.matrix);
     clone.quaternion.setFromRotationMatrix(reticle.matrix);
     scene.add(clone);
