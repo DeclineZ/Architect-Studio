@@ -332,17 +332,11 @@ function clampScale(object) {
   object.scale.z = Math.min(Math.max(object.scale.z, minScale), maxScale);
 }
 
-function updateScaleButtons() {
-  const enabled = !!selectedModel;
-  scaleUpBtn.disabled = !enabled;
-  scaleDownBtn.disabled = !enabled;
-}
 
 // Call updateScaleButtons from selectModel and deselectModel
 const originalSelectModel = selectModel;
 selectModel = function(object) {
   originalSelectModel(object);
-  updateScaleButtons();
 };
 
 const originalDeselectModel = deselectModel;
