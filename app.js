@@ -1,104 +1,74 @@
+// Cleaned full app.js
+// -----------------------------------------------------------------------------
+// Imports
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.module.js';
 import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/webxr/ARButton.js';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/loaders/GLTFLoader.js';
 
-let container = document.getElementById('ar-container');
-
-let camera, scene, renderer;
-let controller;
-let reticle;
-let model = null;
-const placedModels = [];
-let selectedModel = null;
-let originalMaterials = new Map();
-
-const raycaster = new THREE.Raycaster();
-const tempMatrix = new THREE.Matrix4();
-
-init();
-
-function init() {
-  scene = new THREE.Scene();
-
-  camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 20);
-
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.xr.enabled = true;
-  container.appendChild(renderer.domElement);
-
-  // AR Button Setup
-  const arButton = ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] });
-  document.getElementById('enter-ar-btn').replaceWith(arButton);
-
-  // Lights
-  const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-  light.position.set(0.5, 1, 0.25);
-  scene.add(light);
-
-  // Controller
-  controller = renderer.xr.getController(0);
-  controller.addEventListener('select', onSelectOrSelectModel);
-  scene.add(controller);
-
-  // Reticle
-  reticle = new THREE.Mesh(
-    new THREE.RingGeometry(0.3, 0.35, 32).rotateX(-Math.PI / 2),
-    new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide })
-  );
-  reticle.matrixAutoUpdate = false;
-  reticle.visible = false;
-  scene.add(reticle);
-
-  // Load GLTF model
-  const loader = new GLTFLoader();
-// Elements and variables for UI
+// -----------------------------------------------------------------------------
+// DOM Elements
+const container = document.getElementById('ar-container');
 const modelSelection = document.getElementById('model-selection');
 const removeSelectedBtn = document.getElementById('remove-selected-btn');
 const availableModelsDiv = document.getElementById('available-models');
 const toggleUIButton = document.getElementById('toggle-ui-btn');
+const enterARPlaceholderBtn = document.getElementById('enter-ar-btn'); // Will be replaced by ARButton
 
-// List of models to load
-const modelsToLoad = [
-  {name: 'Avocado', path: 'models/Avocdo.glb' },
-   {name: 'AntiqueCamera', path: 'models/AntiqueCamera.glb' },
-];
-
-const loadedModels = new Map(); // name -> loaded model
-let currentModelName = modelsToLoad[0].name; // default
-
-// Rest of your existing variables
+// -----------------------------------------------------------------------------
+// Global State Variables
 let camera, scene, renderer;
-let controller;
-let reticle;
-let model = null; // current model for placement
-const placedModels = [];
-let selectedModel = null;
-let originalMaterials = new Map();
+let controller, reticle;
+let model = null;                 // Currently chosen model prototype (not yet placed)
+const placedModels = [];          // Array of placed model root objects
+let selectedModel = null;         // Currently selected placed model
+const originalMaterials = new Map(); // Store original materials per mesh when highlighting
 
+// Raycasting helpers
 const raycaster = new THREE.Raycaster();
 const tempMatrix = new THREE.Matrix4();
 
-init();
+// Models configuration
+const modelsToLoad = [
+  { name: 'Avocado', path: 'models/Avocado.glb', scale: 0.2 },
+  { name: 'AntiqueCamera', path: 'models/AntiqueCamera.glb', scale: 0.2 },
+];
 
+// Loaded model prototypes (Map: name -> THREE.Group)
+const loadedModels = new Map();
+
+// Currently selected model name (by UI button)
+let currentModelName = modelsToLoad[0].name;
+
+// UI visibility flag
+let uiVisible = true;
+
+// -----------------------------------------------------------------------------
+// Initialization Entry Point
+init(); // Call exactly once
+
+// -----------------------------------------------------------------------------
+// Main init (async to await asset loading)
 async function init() {
+  // Scene & Camera
   scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
 
-  camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 20);
-
+  // Renderer
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.xr.enabled = true;
   container.appendChild(renderer.domElement);
 
-  // AR Button Setup
-  const arButton = ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] });
-  document.getElementById('enter-ar-btn').replaceWith(arButton);
-
-  // Lights
+  // Lighting
   const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
   light.position.set(0.5, 1, 0.25);
   scene.add(light);
+
+  // XR Button (replace placeholder)
+  const arButton = ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] });
+  if (enterARPlaceholderBtn) enterARPlaceholderBtn.replaceWith(arButton);
+  else document.body.appendChild(arButton);
 
   // Controller
   controller = renderer.xr.getController(0);
@@ -114,81 +84,62 @@ async function init() {
   reticle.visible = false;
   scene.add(reticle);
 
+  // Load models
   await loadAllModels();
+
+  // Setup initial UI
   setupAvailableModelsUI();
   model = loadedModels.get(currentModelName);
+  updateModelSelectionUI();
 
-  // Hit Test Variables
-  let hitTestSource = null;
-  let hitTestSourceRequested = false;
+  // Event listeners
+  window.addEventListener('resize', onWindowResize);
+  removeSelectedBtn?.addEventListener('click', onRemoveSelected);
+  toggleUIButton?.addEventListener('click', toggleUIVisibility);
 
-  renderer.setAnimationLoop((timestamp, frame) => {
-    if (frame) {
-      const referenceSpace = renderer.xr.getReferenceSpace();
-      const session = renderer.xr.getSession();
-
-      if (!hitTestSourceRequested) {
-        session.requestReferenceSpace('viewer').then((refSpace) => {
-          session.requestHitTestSource({ space: refSpace }).then((source) => {
-            hitTestSource = source;
-          });
-        });
-
-        session.addEventListener('end', () => {
-          hitTestSourceRequested = false;
-          hitTestSource = null;
-        });
-
-        hitTestSourceRequested = true;
-      }
-
-      if (hitTestSource) {
-        const hitTestResults = frame.getHitTestResults(hitTestSource);
-
-        if (hitTestResults.length) {
-          const hit = hitTestResults[0];
-          const pose = hit.getPose(referenceSpace);
-
-          reticle.visible = true;
-          reticle.matrix.fromArray(pose.transform.matrix);
-        } else {
-          reticle.visible = false;
-        }
-      }
-    }
-
-    renderer.render(scene, camera);
-  });
+  // Start AR loop / hit test handling
+  setupXRHitTestLoop();
 }
 
-// Load all models defined in modelsToLoad
+// -----------------------------------------------------------------------------
+// Asset Loading
 async function loadAllModels() {
   const loader = new GLTFLoader();
-  for (let entry of modelsToLoad) {
+
+  for (const entry of modelsToLoad) {
     try {
       const gltf = await loader.loadAsync(entry.path);
-      gltf.scene.traverse((child) => {
+
+      // Recentering & optional adjustments
+      gltf.scene.traverse(child => {
         if (child.isMesh) {
           child.geometry.computeBoundingBox();
           const bbox = child.geometry.boundingBox;
           const center = new THREE.Vector3();
           bbox.getCenter(center);
           child.geometry.translate(-center.x, -center.y, -center.z);
+          child.castShadow = true;
+          child.receiveShadow = true;
         }
       });
-      gltf.scene.scale.set(0.2, 0.2, 0.2);
-      loadedModels.set(entry.name, gltf.scene);
-    } catch (error) {
-      console.error('Error loading model', entry.name, error);
+
+      const root = gltf.scene;
+      const s = entry.scale ?? 0.2;
+      root.scale.set(s, s, s);
+
+      loadedModels.set(entry.name, root);
+    } catch (e) {
+      console.error('Error loading model', entry.name, e);
     }
   }
 }
 
-// Setup UI buttons for available models
+// -----------------------------------------------------------------------------
+// UI Construction & Updates
 function setupAvailableModelsUI() {
+  if (!availableModelsDiv) return;
   availableModelsDiv.innerHTML = '';
-
-  modelsToLoad.forEach((entry) => {
+  modelsToLoad.forEach(entry => {
     const btn = document.createElement('button');
     btn.textContent = entry.name;
     if (entry.name === currentModelName) btn.classList.add('selected');
@@ -202,100 +153,114 @@ function setupAvailableModelsUI() {
 }
 
 function updateAvailableModelsUI() {
-  const buttons = Array.from(availableModelsDiv.querySelectorAll('button'));
-  buttons.forEach(button => {
-    if (button.textContent === currentModelName) {
-      button.classList.add('selected');
-    } else {
-      button.classList.remove('selected');
-    }
+  if (!availableModelsDiv) return;
+  const buttons = availableModelsDiv.querySelectorAll('button');
+  buttons.forEach(btn => {
+    const isCurrent = btn.textContent === currentModelName;
+    btn.classList.toggle('selected', isCurrent);
   });
 }
 
-// Modify onSelectOrSelectModel to use current selected model
+function updateModelSelectionUI() {
+  if (!modelSelection || !removeSelectedBtn) return;
+
+  // Remove old dynamic buttons (keep the remove button)
+  const stale = Array.from(modelSelection.querySelectorAll('button')).filter(b => b !== removeSelectedBtn);
+  stale.forEach(b => b.remove());
+
+  placedModels.forEach((m, i) => {
+    const btn = document.createElement('button');
+    btn.textContent = `Model ${i + 1}`;
+    if (m === selectedModel) btn.classList.add('selected');
+    btn.addEventListener('click', () => selectModel(m));
+    modelSelection.insertBefore(btn, removeSelectedBtn);
+  });
+}
+
+function toggleUIVisibility() {
+  uiVisible = !uiVisible;
+  [availableModelsDiv, modelSelection].forEach(el => {
+    if (!el) return;
+    el.classList.toggle('hidden-ui', !uiVisible);
+  });
+  if (toggleUIButton) toggleUIButton.textContent = uiVisible ? 'Hide UI' : 'Show UI';
+}
+
+// -----------------------------------------------------------------------------
+// Selection Logic
 function onSelectOrSelectModel() {
+  // Raycast first to see if we clicked an existing model
   tempMatrix.identity().extractRotation(controller.matrixWorld);
   raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
   raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
 
   const intersects = raycaster.intersectObjects(placedModels, true);
-
   if (intersects.length > 0) {
-    let intersectedModel = intersects[0].object;
-    while (intersectedModel.parent && !placedModels.includes(intersectedModel)) {
-      intersectedModel = intersectedModel.parent;
-    }
-    selectModel(intersectedModel);
+    let obj = intersects[0].object;
+    while (obj.parent && !placedModels.includes(obj)) obj = obj.parent;
+    selectModel(obj);
+    return;
+  }
+
+  // Otherwise place new model if reticle visible
+  if (reticle.visible && model) {
+    const clone = model.clone(true);
+    clone.position.setFromMatrixPosition(reticle.matrix);
+    clone.quaternion.setFromRotationMatrix(reticle.matrix);
+    scene.add(clone);
+    placedModels.push(clone);
+    selectModel(clone);
   } else {
-    if (reticle.visible && model) {
-      const clone = model.clone();
-      clone.position.setFromMatrixPosition(reticle.matrix);
-      clone.quaternion.setFromRotationMatrix(reticle.matrix);
-      scene.add(clone);
-      placedModels.push(clone);
-      selectModel(clone);
-    } else {
-      deselectModel();
-    }
+    deselectModel();
   }
 }
 
-// Toggle UI
-let uiVisible = true;
-toggleUIButton.addEventListener('click', () => {
-  uiVisible = !uiVisible;
-  if (uiVisible) {
-    availableModelsDiv.classList.remove('hidden-ui');
-    modelSelection.classList.remove('hidden-ui');
-    toggleUIButton.textContent = 'Hide UI';
-  } else {
-    availableModelsDiv.classList.add('hidden-ui');
-    modelSelection.classList.add('hidden-ui');
-    toggleUIButton.textContent = 'Show UI';
-  }
-});
-
-// The rest of your previous functions for selectModel, deselectModel, removeLastModel, updateModelSelectionUI, etc.
-// ... (Keep these unchanged from previous)
-
-// Function updateModelSelectionUI() to update placed model buttons
-function updateModelSelectionUI() {
-  // Remove all model buttons except Remove Selected button
-  const buttons = Array.from(modelSelection.querySelectorAll('button'));
-  buttons.forEach(btn => {
-    if (btn !== removeSelectedBtn) btn.remove();
-  });
-
-  placedModels.forEach((modelObj, index) => {
-    const btn = document.createElement('button');
-    btn.textContent = `Model ${index + 1}`;
-    if (modelObj === selectedModel) btn.classList.add('selected');
-    btn.addEventListener('click', () => {
-      selectModel(modelObj);
-      updateModelSelectionUI();
-    });
-    modelSelection.insertBefore(btn, removeSelectedBtn);
-  });
-}
-
-// selectModel, deselectModel, removeLastModel implementations unchanged
-    gltf.scene.traverse((child) => {
-      if (child.isMesh) {
-        child.geometry.computeBoundingBox();
-        const bbox = child.geometry.boundingBox;
-        const center = new THREE.Vector3();
-        bbox.getCenter(center);
-        child.geometry.translate(-center.x, -center.y, -center.z);
+function selectModel(object) {
+  if (selectedModel === object) return; // Already selected
+  deselectModel();
+  selectedModel = object;
+  originalMaterials.clear();
+  selectedModel.traverse(child => {
+    if (child.isMesh) {
+      originalMaterials.set(child.uuid, child.material);
+      child.material = child.material.clone();
+      if (child.material.emissive === undefined) {
+        child.material.emissive = new THREE.Color(0x000000);
       }
-    });
-
-    model = gltf.scene;
-    model.scale.set(0.2, 0.2, 0.2);
-  }, undefined, (error) => {
-    console.error('Error loading model:', error);
+      child.material.emissive = new THREE.Color(0xffff00);
+      child.material.emissiveIntensity = 0.5;
+    }
   });
+  updateModelSelectionUI();
+}
 
-  // Hit Test Variables
+function deselectModel() {
+  if (!selectedModel) return;
+  selectedModel.traverse(child => {
+    if (child.isMesh && originalMaterials.has(child.uuid)) {
+      child.material.dispose();
+      child.material = originalMaterials.get(child.uuid);
+    }
+  });
+  selectedModel = null;
+  originalMaterials.clear();
+  updateModelSelectionUI();
+}
+
+function onRemoveSelected() {
+  if (!selectedModel) {
+    alert('No model selected to remove.');
+    return;
+  }
+  const idx = placedModels.indexOf(selectedModel);
+  if (idx !== -1) placedModels.splice(idx, 1);
+  scene.remove(selectedModel);
+  deselectModel();
+}
+
+// -----------------------------------------------------------------------------
+// XR Hit Test & Render Loop
+function setupXRHitTestLoop() {
   let hitTestSource = null;
   let hitTestSourceRequested = false;
 
@@ -305,8 +270,8 @@ function updateModelSelectionUI() {
       const session = renderer.xr.getSession();
 
       if (!hitTestSourceRequested) {
-        session.requestReferenceSpace('viewer').then((refSpace) => {
-          session.requestHitTestSource({ space: refSpace }).then((source) => {
+        session.requestReferenceSpace('viewer').then(viewerSpace => {
+          session.requestHitTestSource({ space: viewerSpace }).then(source => {
             hitTestSource = source;
           });
         });
@@ -321,11 +286,9 @@ function updateModelSelectionUI() {
 
       if (hitTestSource) {
         const hitTestResults = frame.getHitTestResults(hitTestSource);
-
         if (hitTestResults.length) {
           const hit = hitTestResults[0];
           const pose = hit.getPose(referenceSpace);
-
           reticle.visible = true;
           reticle.matrix.fromArray(pose.transform.matrix);
         } else {
@@ -338,121 +301,17 @@ function updateModelSelectionUI() {
   });
 }
 
-// Add references for new UI elements
-const modelSelection = document.getElementById('model-selection');
-const removeSelectedBtn = document.getElementById('remove-selected-btn');
-
-// Function to update model selection UI buttons
-function updateModelSelectionUI() {
-  // Remove all model buttons except Remove Selected button
-  const buttons = Array.from(modelSelection.querySelectorAll('button'));
-  buttons.forEach(btn => {
-    if (btn !== removeSelectedBtn) btn.remove();
-  });
-
-  placedModels.forEach((model, index) => {
-    const btn = document.createElement('button');
-    btn.textContent = `Model ${index + 1}`;
-    if (model === selectedModel) btn.classList.add('selected');
-    btn.addEventListener('click', () => {
-      selectModel(model);
-      updateModelSelectionUI();
-    });
-    modelSelection.insertBefore(btn, removeSelectedBtn);
-  });
-}
-function selectModel(object) {
-  if (selectedModel === object) return;
-  deselectModel();
-  selectedModel = object;
-
-  originalMaterials.clear();
-  selectedModel.traverse((child) => {
-    if (child.isMesh) {
-      originalMaterials.set(child.uuid, child.material);
-      child.material = child.material.clone();
-      child.material.emissive = new THREE.Color(0xffff00);
-      child.material.emissiveIntensity = 0.5;
-    }
-  });
-
-  updateModelSelectionUI();
-}
-
-function deselectModel() {
-  if (!selectedModel) return;
-  selectedModel.traverse((child) => {
-    if (child.isMesh && originalMaterials.has(child.uuid)) {
-      child.material.dispose();
-      child.material = originalMaterials.get(child.uuid);
-    }
-  });
-  selectedModel = null;
-
-  updateModelSelectionUI();
-}
-
-function removeLastModel() {
-  if (placedModels.length > 0) {
-    const last = placedModels.pop();
-    if (selectedModel === last) {
-      deselectModel();
-    }
-    scene.remove(last);
-    updateModelSelectionUI();
-  }
-}
-
-// Add handler for Remove Selected button
-removeSelectedBtn.addEventListener('click', () => {
-  if (selectedModel) {
-    const index = placedModels.indexOf(selectedModel);
-    if (index !== -1) {
-      placedModels.splice(index, 1);
-      scene.remove(selectedModel);
-      deselectModel();
-      updateModelSelectionUI();
-    }
-  } else {
-    alert('No model selected to remove.');
-  }
-});
-
-// Call updateModelSelectionUI initially because placedModels can be initially empty
-updateModelSelectionUI();
-
-// Ensure updateModelSelectionUI called after placing new model
-function onSelectOrSelectModel() {
-  // cast ray from controller to detect tap on model
-  const tempMatrix = new THREE.Matrix4();
-  tempMatrix.identity().extractRotation(controller.matrixWorld);
-  raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-  raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
-
-  const intersects = raycaster.intersectObjects(placedModels, true);
-
-  if (intersects.length > 0) {
-    let intersectedModel = intersects[0].object;
-    while (intersectedModel.parent && !placedModels.includes(intersectedModel)) {
-      intersectedModel = intersectedModel.parent;
-    }
-    selectModel(intersectedModel);
-  } else {
-    if (reticle.visible && model) {
-      const clone = model.clone();
-      clone.position.setFromMatrixPosition(reticle.matrix);
-      clone.quaternion.setFromRotationMatrix(reticle.matrix);
-      scene.add(clone);
-      placedModels.push(clone);
-      selectModel(clone);
-    } else {
-      deselectModel();
-    }
-  }
-}
-
-window.addEventListener('resize', () => {
+// -----------------------------------------------------------------------------
+// Utilities
+function onWindowResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-});
+}
+
+// -----------------------------------------------------------------------------
+// Optional: Debug helpers (comment out if not needed)
+// window.__debug = { THREE, scene, placedModels };
+// console.log('Debug handle at window.__debug');
+
+// End of file
