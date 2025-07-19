@@ -29,7 +29,7 @@ const tempMatrix = new THREE.Matrix4();
 
 // Models configuration
 const modelsToLoad = [
-  { name: 'Avocado', path: 'models/Avocado.glb', scale: 5 },
+  { name: 'Avocado', path: 'models/Avocado.glb', scale: 1 },
   { name: 'AntiqueCamera', path: 'models/AntiqueCamera.glb', scale: 1 },
 ];
 
@@ -41,6 +41,10 @@ let currentModelName = modelsToLoad[0].name;
 
 // UI visibility flag
 let uiVisible = true;
+
+// Pinch-to-scale state variables
+let initialPinchDistance = null;
+let initialScale = null;
 
 // -----------------------------------------------------------------------------
 // Initialization Entry Point
@@ -99,6 +103,9 @@ async function init() {
 
   // Start AR loop / hit test handling
   setupXRHitTestLoop();
+
+  // Pinch-to-scale handler
+  setupPinchToScaleHandler();
 }
 
 // -----------------------------------------------------------------------------
