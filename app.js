@@ -14,6 +14,26 @@ const availableModelsDiv = document.getElementById('available-models');
 const toggleUIButton = document.getElementById('toggle-ui-btn');
 const enterARPlaceholderBtn = document.getElementById('enter-ar-btn'); // Will be replaced by ARButton
 const scaleUpBtn = document.getElementById('scale-up-btn');
+
+function updateModelSelectionUI() {
+  if (!modelSelection || !removeSelectedBtn) return;
+
+  // Remove old dynamic buttons (keep the remove button and scale buttons)
+  const stale = Array.from(modelSelection.querySelectorAll('button')).filter(b =>
+    b !== removeSelectedBtn &&
+    b.id !== 'scale-up-btn' &&
+    b.id !== 'scale-down-btn'
+  );
+  stale.forEach(b => b.remove());
+
+  placedModels.forEach((m, i) => {
+    const btn = document.createElement('button');
+    btn.textContent = `Model ${i + 1}`;
+    if (m === selectedModel) btn.classList.add('selected');
+    btn.addEventListener('click', () => selectModel(m));
+    modelSelection.insertBefore(btn, removeSelectedBtn);
+  });
+}
 const scaleDownBtn = document.getElementById('scale-down-btn');
 
 // -----------------------------------------------------------------------------
