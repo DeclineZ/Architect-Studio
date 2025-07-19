@@ -13,6 +13,8 @@ const removeSelectedBtn = document.getElementById('remove-selected-btn');
 const availableModelsDiv = document.getElementById('available-models');
 const toggleUIButton = document.getElementById('toggle-ui-btn');
 const enterARPlaceholderBtn = document.getElementById('enter-ar-btn'); // Will be replaced by ARButton
+const scaleUpBtn = document.getElementById('scale-up-btn');
+const scaleDownBtn = document.getElementById('scale-down-btn');
 
 // -----------------------------------------------------------------------------
 // Global State Variables
@@ -42,56 +44,12 @@ let currentModelName = modelsToLoad[0].name;
 // UI visibility flag
 let uiVisible = true;
 
-// Pinch-to-scale state variables
-let initialPinchDistance = null;
-let initialScale = null;
-
 // -----------------------------------------------------------------------------
 // Initialization Entry Point
 init(); // Call exactly once
 
 // -----------------------------------------------------------------------------
 // Main init (async to await asset loading)
-
-function setupPinchToScaleHandler() {
-  if (!renderer || !renderer.domElement) return;
-
-  renderer.domElement.addEventListener('touchstart', (event) => {
-    if (event.touches.length === 2 && selectedModel) {
-      const dx = event.touches[0].pageX - event.touches[1].pageX;
-      const dy = event.touches[0].pageY - event.touches[1].pageY;
-      initialPinchDistance = Math.sqrt(dx * dx + dy * dy);
-      initialScale = selectedModel.scale.clone();
-    }
-  }, { passive: true });
-
-  renderer.domElement.addEventListener('touchmove', (event) => {
-    if (event.touches.length === 2 && selectedModel && initialPinchDistance) {
-      const dx = event.touches[0].pageX - event.touches[1].pageX;
-      const dy = event.touches[0].pageY - event.touches[1].pageY;
-      const newDistance = Math.sqrt(dx * dx + dy * dy);
-
-      const scaleFactor = newDistance / initialPinchDistance;
-      const minScale = 0.1;
-      const maxScale = 5;
-      let newScale = initialScale.clone().multiplyScalar(scaleFactor);
-
-      newScale.x = Math.min(Math.max(newScale.x, minScale), maxScale);
-      newScale.y = Math.min(Math.max(newScale.y, minScale), maxScale);
-      newScale.z = Math.min(Math.max(newScale.z, minScale), maxScale);
-
-      selectedModel.scale.copy(newScale);
-    }
-  }, { passive: true });
-
-  renderer.domElement.addEventListener('touchend', (event) => {
-    if (event.touches.length < 2) {
-      initialPinchDistance = null;
-      initialScale = null;
-    }
-  }, { passive: true });
-}
-
 async function init() {
   // Scene & Camera
   scene = new THREE.Scene();
@@ -143,9 +101,6 @@ async function init() {
 
   // Start AR loop / hit test handling
   setupXRHitTestLoop();
-
-  // Pinch-to-scale handler
-  setupPinchToScaleHandler();
 }
 
 // -----------------------------------------------------------------------------
@@ -351,5 +306,49 @@ function onWindowResize() {
 // Optional: Debug helpers (comment out if not needed)
 // window.__debug = { THREE, scene, placedModels };
 // console.log('Debug handle at window.__debug');
+
+// Initialize scale buttons state on load
+updateScaleButtons();
+
+scaleUpBtn.addEventListener('click', () => {
+  if (selectedModel) {
+    selectedModel.scale.multiplyScalar(1.1);
+    clampScale(selectedModel);
+  }
+});
+
+scaleDownBtn.addEventListener('click', () => {
+  if (selectedModel) {
+    selectedModel.scale.multiplyScalar(0.9);
+    clampScale(selectedModel);
+  }
+});
+
+function clampScale(object) {
+  const minScale = 0.1;
+  const maxScale = 5;
+  object.scale.x = Math.min(Math.max(object.scale.x, minScale), maxScale);
+  object.scale.y = Math.min(Math.max(object.scale.y, minScale), maxScale);
+  object.scale.z = Math.min(Math.max(object.scale.z, minScale), maxScale);
+}
+
+function updateScaleButtons() {
+  const enabled = !!selectedModel;
+  scaleUpBtn.disabled = !enabled;
+  scaleDownBtn.disabled = !enabled;
+}
+
+// Call updateScaleButtons from selectModel and deselectModel
+const originalSelectModel = selectModel;
+selectModel = function(object) {
+  originalSelectModel(object);
+  updateScaleButtons();
+};
+
+const originalDeselectModel = deselectModel;
+deselectModel = function() {
+  originalDeselectModel();
+  updateScaleButtons();
+};
 
 // End of file
