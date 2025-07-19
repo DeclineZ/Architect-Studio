@@ -177,15 +177,6 @@ function updateModelSelectionUI() {
   });
 }
 
-function toggleUIVisibility() {
-  uiVisible = !uiVisible;
-  [availableModelsDiv, modelSelection].forEach(el => {
-    if (!el) return;
-    el.classList.toggle('hidden-ui', !uiVisible);
-  });
-  if (toggleUIButton) toggleUIButton.textContent = uiVisible ? 'Hide UI' : 'Show UI';
-}
-
 // -----------------------------------------------------------------------------
 // Selection Logic
 function onSelectOrSelectModel() {
