@@ -30,7 +30,7 @@ const tempMatrix = new THREE.Matrix4();
 // Models configuration
 const modelsToLoad = [
   { name: 'Avocado', path: 'models/Avocado.glb', scale: 1 },
-  { name: 'AntiqueCamera', path: 'models/AntiqueCamera.glb', scale: 1 },
+  { name: 'AntiqueCamera', path: 'models/AntiqueCamera.glb', scale: 0.2 },
 ];
 
 // Loaded model prototypes (Map: name -> THREE.Group)
