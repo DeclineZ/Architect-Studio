@@ -44,6 +44,69 @@
       border-radius: 5px;
       color: white;
     }
+        #model-selection {
+      position: fixed;
+      bottom: 40px;
+      left: 0;
+      width: 100%;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 10px;
+      display: flex;
+      overflow-x: auto;
+      box-sizing: border-box;
+      z-index: 10;
+      transition: transform 0.3s ease;
+    }
+
+    .hidden-ui {
+      transform: translateY(100%);
+    }
+
+    #available-models {
+      position: fixed;
+      bottom: 80px;
+      left: 0;
+      width: 100%;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 10px;
+      display: flex;
+      overflow-x: auto;
+      box-sizing: border-box;
+      z-index: 10;
+    }
+
+    #available-models button {
+      background: #333;
+      border: 1px solid #555;
+      color: white;
+      padding: 6px 12px;
+      margin-right: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      white-space: nowrap;
+      font-size: 14px;
+    }
+
+    #available-models button.selected {
+      background: #0a74da;
+      border-color: #049;
+      font-weight: bold;
+    }
+
+    #toggle-ui-btn {
+      position: fixed;
+      bottom: 120px;
+      left: 10px;
+      padding: 6px 12px;
+      background: #0a74da;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      z-index: 20;
+    }
   </style>
 </head>
 <body>
@@ -52,6 +115,18 @@
     <p>Move your device slowly to detect surfaces. Tap the screen to place the 3D model.</p>
     <button id="enter-ar-btn">Enter AR</button>
   </div>
+
+  <!-- Model selection UI panel -->
+  <div id="model-selection">
+    <!-- Model buttons will be added dynamically here -->
+    <button id="remove-selected-btn">Remove Selected</button>
+  </div>
+
+  <!-- Available models selection panel -->
+  <div id="available-models"></div>
+
+  <!-- Toggle UI button -->
+  <button id="toggle-ui-btn">Hide UI</button>
 
   <script type="module" src="app.js"></script>
 </body>
