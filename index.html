@@ -1,10 +1,16 @@
-<!-- Updated to use module script and remove individual Three.js scripts -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AR Model Exhibit Demo</title>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.module.js"
+    }
+  }
+  </script>
   <style>
     body, html {
       margin: 0;
@@ -47,12 +53,6 @@
     <button id="enter-ar-btn">Enter AR</button>
   </div>
 
-  <!-- Removed old script tags -->
-  <!-- <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script> -->
-  <!-- <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/webxr/ARButton.js"></script> -->
-  <!-- <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/loaders/GLTFLoader.js"></script> -->
-  
-  <!-- Use module script for app.js -->
   <script type="module" src="app.js"></script>
 </body>
 </html>
