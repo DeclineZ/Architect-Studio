@@ -14,6 +14,7 @@ const availableModelsDiv = document.getElementById('available-models');
 const toggleUIButton = document.getElementById('toggle-ui-btn');
 const enterARPlaceholderBtn = document.getElementById('enter-ar-btn'); // Will be replaced by ARButton
 const scaleUpBtn = document.getElementById('scale-up-btn');
+const scaleDownBtn = document.getElementById('scale-down-btn');
 
 function updateModelSelectionUI() {
   if (!modelSelection || !removeSelectedBtn) return;
@@ -34,7 +35,6 @@ function updateModelSelectionUI() {
     modelSelection.insertBefore(btn, removeSelectedBtn);
   });
 }
-const scaleDownBtn = document.getElementById('scale-down-btn');
 
 // -----------------------------------------------------------------------------
 // Global State Variables
@@ -174,31 +174,6 @@ function setupAvailableModelsUI() {
   });
 }
 
-function updateAvailableModelsUI() {
-  if (!availableModelsDiv) return;
-  const buttons = availableModelsDiv.querySelectorAll('button');
-  buttons.forEach(btn => {
-    const isCurrent = btn.textContent === currentModelName;
-    btn.classList.toggle('selected', isCurrent);
-  });
-}
-
-function updateModelSelectionUI() {
-  if (!modelSelection || !removeSelectedBtn) return;
-
-  // Remove old dynamic buttons (keep the remove button)
-  const stale = Array.from(modelSelection.querySelectorAll('button')).filter(b => b !== removeSelectedBtn);
-  stale.forEach(b => b.remove());
-
-  placedModels.forEach((m, i) => {
-    const btn = document.createElement('button');
-    btn.textContent = `Model ${i + 1}`;
-    if (m === selectedModel) btn.classList.add('selected');
-    btn.addEventListener('click', () => selectModel(m));
-    modelSelection.insertBefore(btn, removeSelectedBtn);
-  });
-}
-
 // -----------------------------------------------------------------------------
 // Selection Logic
 function onSelectOrSelectModel() {
@@ -322,13 +297,6 @@ function onWindowResize() {
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-// -----------------------------------------------------------------------------
-// Optional: Debug helpers (comment out if not needed)
-// window.__debug = { THREE, scene, placedModels };
-// console.log('Debug handle at window.__debug');
-
-// Initialize scale buttons state on load
-updateScaleButtons();
 
 scaleUpBtn.addEventListener('click', () => {
   if (selectedModel) {
