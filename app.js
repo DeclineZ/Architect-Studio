@@ -30,6 +30,10 @@ function init() {
   light.position.set(0.5, 1, 0.25);
   scene.add(light);
 
+  // Ambient light
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+  scene.add(ambientLight);
+
   // Controller
   controller = renderer.xr.getController(0);
   controller.addEventListener('select', onSelect);
@@ -37,8 +41,8 @@ function init() {
 
   // Reticle for visualizing surface
   reticle = new THREE.Mesh(
-    new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
-    new THREE.MeshBasicMaterial({ color: 0x0fff0, side: THREE.DoubleSide })
+    new THREE.RingGeometry(0.3, 0.35, 32).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide })
   );
   reticle.matrixAutoUpdate = false;
   reticle.visible = false;
@@ -92,6 +96,7 @@ function init() {
 }
 
 function onSelect() {
+  console.log('Tapped to place');
   if (reticle.visible) {
     const clone = testCube.clone();
     clone.position.setFromMatrixPosition(reticle.matrix);
