@@ -52,6 +52,46 @@ init(); // Call exactly once
 
 // -----------------------------------------------------------------------------
 // Main init (async to await asset loading)
+
+function setupPinchToScaleHandler() {
+  if (!renderer || !renderer.domElement) return;
+
+  renderer.domElement.addEventListener('touchstart', (event) => {
+    if (event.touches.length === 2 && selectedModel) {
+      const dx = event.touches[0].pageX - event.touches[1].pageX;
+      const dy = event.touches[0].pageY - event.touches[1].pageY;
+      initialPinchDistance = Math.sqrt(dx * dx + dy * dy);
+      initialScale = selectedModel.scale.clone();
+    }
+  }, { passive: true });
+
+  renderer.domElement.addEventListener('touchmove', (event) => {
+    if (event.touches.length === 2 && selectedModel && initialPinchDistance) {
+      const dx = event.touches[0].pageX - event.touches[1].pageX;
+      const dy = event.touches[0].pageY - event.touches[1].pageY;
+      const newDistance = Math.sqrt(dx * dx + dy * dy);
+
+      const scaleFactor = newDistance / initialPinchDistance;
+      const minScale = 0.1;
+      const maxScale = 5;
+      let newScale = initialScale.clone().multiplyScalar(scaleFactor);
+
+      newScale.x = Math.min(Math.max(newScale.x, minScale), maxScale);
+      newScale.y = Math.min(Math.max(newScale.y, minScale), maxScale);
+      newScale.z = Math.min(Math.max(newScale.z, minScale), maxScale);
+
+      selectedModel.scale.copy(newScale);
+    }
+  }, { passive: true });
+
+  renderer.domElement.addEventListener('touchend', (event) => {
+    if (event.touches.length < 2) {
+      initialPinchDistance = null;
+      initialScale = null;
+    }
+  }, { passive: true });
+}
+
 async function init() {
   // Scene & Camera
   scene = new THREE.Scene();
