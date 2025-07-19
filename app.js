@@ -13,28 +13,7 @@ const removeSelectedBtn = document.getElementById('remove-selected-btn');
 const availableModelsDiv = document.getElementById('available-models');
 const toggleUIButton = document.getElementById('toggle-ui-btn');
 const enterARPlaceholderBtn = document.getElementById('enter-ar-btn'); // Will be replaced by ARButton
-const scaleUpBtn = document.getElementById('scale-up-btn');
-const scaleDownBtn = document.getElementById('scale-down-btn');
-
-function updateModelSelectionUI() {
-  if (!modelSelection || !removeSelectedBtn) return;
-
-  // Remove old dynamic buttons (keep the remove button and scale buttons)
-  const stale = Array.from(modelSelection.querySelectorAll('button')).filter(b =>
-    b !== removeSelectedBtn &&
-    b.id !== 'scale-up-btn' &&
-    b.id !== 'scale-down-btn'
-  );
-  stale.forEach(b => b.remove());
-
-  placedModels.forEach((m, i) => {
-    const btn = document.createElement('button');
-    btn.textContent = `Model ${i + 1}`;
-    if (m === selectedModel) btn.classList.add('selected');
-    btn.addEventListener('click', () => selectModel(m));
-    modelSelection.insertBefore(btn, removeSelectedBtn);
-  });
-}
+const scaleSlider = document.getElementById('scale-slider');
 
 // -----------------------------------------------------------------------------
 // Global State Variables
@@ -174,6 +153,31 @@ function setupAvailableModelsUI() {
   });
 }
 
+function updateAvailableModelsUI() {
+  if (!availableModelsDiv) return;
+  const buttons = availableModelsDiv.querySelectorAll('button');
+  buttons.forEach(btn => {
+    const isCurrent = btn.textContent === currentModelName;
+    btn.classList.toggle('selected', isCurrent);
+  });
+}
+
+function updateModelSelectionUI() {
+  if (!modelSelection || !removeSelectedBtn) return;
+
+  // Remove old dynamic buttons (keep the remove button)
+  const stale = Array.from(modelSelection.querySelectorAll('button')).filter(b => b !== removeSelectedBtn);
+  stale.forEach(b => b.remove());
+
+  placedModels.forEach((m, i) => {
+    const btn = document.createElement('button');
+    btn.textContent = `Model ${i + 1}`;
+    if (m === selectedModel) btn.classList.add('selected');
+    btn.addEventListener('click', () => selectModel(m));
+    modelSelection.insertBefore(btn, removeSelectedBtn);
+  });
+}
+
 // -----------------------------------------------------------------------------
 // Selection Logic
 function onSelectOrSelectModel() {
@@ -219,6 +223,14 @@ function selectModel(object) {
       child.material.emissiveIntensity = 0.5;
     }
   });
+
+  // Enable and set scale slider value
+  if (scaleSlider) {
+    scaleSlider.disabled = false;
+    // Assume uniform scale on selected model
+    scaleSlider.value = selectedModel.scale.x.toFixed(2);
+  }
+
   updateModelSelectionUI();
 }
 
@@ -232,6 +244,13 @@ function deselectModel() {
   });
   selectedModel = null;
   originalMaterials.clear();
+
+  // Disable scale slider
+  if (scaleSlider) {
+    scaleSlider.disabled = true;
+    scaleSlider.value = '1';
+  }
+
   updateModelSelectionUI();
 }
 
@@ -297,40 +316,9 @@ function onWindowResize() {
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-
-scaleUpBtn.addEventListener('click', () => {
-  if (selectedModel) {
-    selectedModel.scale.multiplyScalar(1.1);
-    clampScale(selectedModel);
-  }
-});
-
-scaleDownBtn.addEventListener('click', () => {
-  if (selectedModel) {
-    selectedModel.scale.multiplyScalar(0.9);
-    clampScale(selectedModel);
-  }
-});
-
-function clampScale(object) {
-  const minScale = 0.1;
-  const maxScale = 5;
-  object.scale.x = Math.min(Math.max(object.scale.x, minScale), maxScale);
-  object.scale.y = Math.min(Math.max(object.scale.y, minScale), maxScale);
-  object.scale.z = Math.min(Math.max(object.scale.z, minScale), maxScale);
-}
-
-
-// Call updateScaleButtons from selectModel and deselectModel
-const originalSelectModel = selectModel;
-selectModel = function(object) {
-  originalSelectModel(object);
-};
-
-const originalDeselectModel = deselectModel;
-deselectModel = function() {
-  originalDeselectModel();
-  updateScaleButtons();
-};
+// -----------------------------------------------------------------------------
+// Optional: Debug helpers (comment out if not needed)
+// window.__debug = { THREE, scene, placedModels };
+// console.log('Debug handle at window.__debug');
 
 // End of file
