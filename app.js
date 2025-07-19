@@ -47,7 +47,7 @@ function init() {
 
   // Loading sample model
   const loader = new GLTFLoader();
-  loader.load('models/sample-model.glb', (gltf) => {
+  loader.load('./models/RUMAH_3.glb', (gltf) => {
     // Center model geometry
     gltf.scene.traverse((child) => {
       if (child.isMesh) {
@@ -61,9 +61,8 @@ function init() {
 
     model = gltf.scene;
     model.scale.set(0.2, 0.2, 0.2);
-    alert('Model loaded successfully');
   }, undefined, (error) => {
-    alert('Error loading model: ' + error.message);
+    console.error('Error loading model:', error);
   });
 
   // Hit test source for placing model
@@ -116,9 +115,6 @@ function onSelect() {
     clone.quaternion.setFromRotationMatrix(reticle.matrix);
     scene.add(clone);
     placedModels.push(clone);
-    alert('Model placed!');
-  } else {
-    alert('Reticle not visible or model not loaded');
   }
 }
 
