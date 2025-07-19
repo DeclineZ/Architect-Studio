@@ -48,7 +48,7 @@ function init() {
 
   // Loading sample model
   const loader = new GLTFLoader();
-  loader.load('models/sample-model.glb', (gltf) => {
+  loader.load('./models/RUMAH_3.glb', (gltf) => {
     model = gltf.scene;
     model.scale.set(0.2, 0.2, 0.2);
     alert('Model loaded successfully');
