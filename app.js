@@ -7,6 +7,7 @@ let container = document.getElementById('ar-container');
 let camera, scene, renderer;
 let controller;
 let reticle;
+let model = null;
 const placedModels = [];
 
 init();
@@ -25,12 +26,11 @@ function init() {
   const arButton = ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] });
   document.getElementById('enter-ar-btn').replaceWith(arButton);
 
-  // Light
+  // Lights
   const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
   light.position.set(0.5, 1, 0.25);
   scene.add(light);
 
-  // Ambient light
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
   scene.add(ambientLight);
 
@@ -39,7 +39,7 @@ function init() {
   controller.addEventListener('select', onSelect);
   scene.add(controller);
 
-  // Reticle for visualizing surface
+  // Reticle
   reticle = new THREE.Mesh(
     new THREE.RingGeometry(0.3, 0.35, 32).rotateX(-Math.PI / 2),
     new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide })
@@ -48,11 +48,26 @@ function init() {
   reticle.visible = false;
   scene.add(reticle);
 
-  // Create a simple cube as the test model instead
-  const cubeGeometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-  const cubeMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-  const testCube = new THREE.Mesh(cubeGeometry, cubeMaterial);
-  // Hit test source for placing model
+  // Load GLTF model
+  const loader = new GLTFLoader();
+  loader.load('models/sample-model.glb', (gltf) => {
+    gltf.scene.traverse((child) => {
+      if (child.isMesh) {
+        child.geometry.computeBoundingBox();
+        const bbox = child.geometry.boundingBox;
+        const center = new THREE.Vector3();
+        bbox.getCenter(center);
+        child.geometry.translate(-center.x, -center.y, -center.z);
+      }
+    });
+
+    model = gltf.scene;
+    model.scale.set(0.2, 0.2, 0.2);
+  }, undefined, (error) => {
+    console.error('Error loading model:', error);
+  });
+
+  // Hit Test Variables
   let hitTestSource = null;
   let hitTestSourceRequested = false;
 
@@ -96,9 +111,8 @@ function init() {
 }
 
 function onSelect() {
-  console.log('Tapped to place');
-  if (reticle.visible) {
-    const clone = testCube.clone();
+  if (reticle.visible && model) {
+    const clone = model.clone();
     clone.position.setFromMatrixPosition(reticle.matrix);
     clone.quaternion.setFromRotationMatrix(reticle.matrix);
     scene.add(clone);
@@ -106,13 +120,11 @@ function onSelect() {
   }
 }
 
-// Function to remove last placed model
+// Remove last placed model
 function removeLastModel() {
   if (placedModels.length > 0) {
-    const lastModel = placedModels.pop();
-    scene.remove(lastModel);
-  } else {
-    alert('No models to remove');
+    const last = placedModels.pop();
+    scene.remove(last);
   }
 }
 
@@ -121,5 +133,3 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
-
-// You can call removeLastModel() from UI or console to remove last model.
