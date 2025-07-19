@@ -1,8 +1,8 @@
-// Basic Three.js scene setup with WebXR AR support
+// Updated app.js to import ES modules directly from CDN
 
-import * as THREE from 'three';
-import { ARButton } from 'three/examples/jsm/webxr/ARButton.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.module.js';
+import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/webxr/ARButton.js';
+import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/loaders/GLTFLoader.js';
 
 let container = document.getElementById('ar-container');
 
@@ -48,7 +48,7 @@ function init() {
 
   // Loading sample model
   const loader = new GLTFLoader();
-  loader.load('models/RUMAH_3.glb', (gltf) => {
+  loader.load('models/sample-model.glb', (gltf) => {
     model = gltf.scene;
     model.scale.set(0.2, 0.2, 0.2); // Adjust scale to fit scene
   }, undefined, (error) => {
@@ -112,7 +112,3 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
-
-// This script uses ES Modules so needs to be run with a module bundler or modern server setup.
-// For demo you can convert to plain script by removing import statements and using global THREE, ARButton, GLTFLoader.
-// Let me know if you want me to provide a fully plain script version for simple inclusion in the browser.
